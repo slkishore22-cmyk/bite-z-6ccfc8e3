@@ -51,7 +51,7 @@ sequenceDiagram
 
 ### B. Seller Portal Paths
 - **Seller Login (`/seller/login`)**: Custom credentials verification using a secure database RPC (`verify_seller_password`).
-- **Dashboard & Orders (`/seller/dashboard`, `/seller/orders`)**: Real-time dashboard showing incoming orders. Includes a simulated scanner button to process scans from the desktop portal.
+- **Dashboard & Orders (`/seller/orders`)**: Real-time dashboard showing incoming orders. Includes a simulated scanner button to process scans from the desktop portal.
 - **Inventory & Settings (`/seller/inventory`, `/seller/settings`)**: Manage active stock and items. Settings tab displays API keys (`x-api-key`) for connecting physical Flutter scanners.
 
 ---
@@ -99,3 +99,55 @@ To store custom, dynamic data points (such as the cart items snapshot, payment m
 To prevent ghost orders and race conditions during peak hours:
 - Check items stock right before persisting the order using Deno backend queries.
 - Execute stock decrement using a database RPC function (`reduce_seller_stock`) to perform atomic decreases on the database server.
+
+---
+
+## 5. UI/UX Flow & UI-Related Design Skills
+
+### Skill 5: Premium Glassmorphism Design System
+The checkout interfaces are built with dynamic CSS design tokens that create a premium feel without requiring complex graphic assets:
+- **Liquid Glass Overlay**: Uses semi-transparent backgrounds combined with high-blur backdrop filters and inset borders to simulate refractive glass material:
+  ```typescript
+  const liquidGlass = {
+    background: "rgba(255,255,255,0.05)",
+    backdropFilter: "blur(40px)",
+    borderRadius: 26,
+    boxShadow: "inset 0 1.5px 0 0 rgba(255,255,255,0.55), 0 8px 32px rgba(0,0,0,0.06)",
+    border: "1px solid rgba(0,0,0,0.03)",
+  };
+  ```
+- **Reflection Highlights**: Employs absolute-positioned top gradients (`glassHighlight`) to simulate standard light reflection angles:
+  ```typescript
+  const glassHighlight = {
+    background: "linear-gradient(180deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%)",
+  };
+  ```
+
+### Skill 6: Live Status Sync via Real-time UI State Transitions
+To keep the customer UI aligned with backend scanning (avoiding manual screen refreshing):
+- **Real-time subscriptions**: The app subscribes to PostgreSQL database changes on `public.orders` using Supabase Realtime:
+  ```typescript
+  const channel = supabase
+    .channel(`order-status-${orderId}`)
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` }, (payload) => {
+       const updatedOrder = payload.new;
+       setOrderStatus(updatedOrder.status);
+    })
+    .subscribe();
+  ```
+- **Dynamic Transition UX**: The customer screen changes layout based on status:
+  - `"pending"` / `"qr_generated"` -> Displays a scanning animation and the payment QR code.
+  - `"scanned"` -> Automatically plays a success alert and reveals the primary checkout **"Pay Now"** button.
+  - `"preparing"` -> Instantly auto-redirects the user to the active kitchen order status page.
+
+### Skill 7: Mobile-first Safe Area & PWA Integration
+The app is optimized to run as a standalone Progressive Web App (PWA) with a premium mobile native-app-like feel:
+- **PWA Route Sync**: Re-injects PWA headers (`apple-mobile-web-app-capable`, theme colors) dynamically upon React routing using a dedicated listener component (`PwaRouteSync`).
+- **iOS Safe Areas**: Layout files enforce `var(--ios-pwa-safe-top)` and `var(--ios-pwa-top-breathing)` styling padding, preventing native status bars or notch overlaps.
+- **Stand-alone Navigation**: Implements custom bottom menus (`LiquidGlassNav`) hidden inside desktop environments but revealed in mobile stand-alone viewports.
+
+### Skill 8: Micro-Animations & Haptic Feedback Triggers
+Interaction quality is enhanced through subtle motion and physical haptics:
+- **Animations**: Renders layout transitions (`framer-motion` and custom CSS slide-ups) to animate item card popups, payment confirmations, and receipt panels smoothly.
+- **Physical Haptics**: Triggers device vibration patterns on successful scans, checkout selections, or warnings using the browser's standard navigator haptic bindings (`navigator.vibrate` wrapped inside `src/lib/haptics.ts`) to provide instant user feedback.
+
