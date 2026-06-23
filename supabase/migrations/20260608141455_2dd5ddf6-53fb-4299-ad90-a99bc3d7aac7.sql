@@ -1,0 +1,1 @@
+UPDATE public.master_admin SET password_hash = extensions.crypt('12345678', extensions.gen_salt('bf')) WHERE username = 'master_admin';
