@@ -24,7 +24,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
-      output: {
+      output: ({
         manualChunks: {
           "react-vendor": ["react", "react-dom", "react-router-dom"],
           "query-vendor": [
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
           ],
           "supabase-vendor": ["@supabase/supabase-js"],
         },
-      },
+      } as unknown as import("rollup").OutputOptions),
     },
   },
 }));
