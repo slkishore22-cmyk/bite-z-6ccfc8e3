@@ -25,14 +25,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          "react-vendor": ["react", "react-dom", "react-router-dom"],
-          "query-vendor": [
-            "@tanstack/react-query",
-            "@tanstack/react-query-persist-client",
-            "@tanstack/query-sync-storage-persister",
-          ],
-          "supabase-vendor": ["@supabase/supabase-js"],
+        manualChunks: (id: string) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("react-router") || id.includes("/react-dom/") || id.match(/[\\/]react[\\/]/)) return "react-vendor";
+            if (id.includes("@tanstack")) return "query-vendor";
+            if (id.includes("@supabase")) return "supabase-vendor";
+          }
         },
       },
     },
