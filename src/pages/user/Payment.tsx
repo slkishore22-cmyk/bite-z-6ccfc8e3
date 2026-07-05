@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { clearCart, getCart, removeCartItem } from "@/lib/userCart";
-import { createOrderOptimistic, saveOrderLocally } from "@/lib/sellerOrders";
+import { clearCart, getCart } from "@/lib/userCart";
+import { saveOrderLocally } from "@/lib/sellerOrders";
 import { pinItem } from "@/lib/userPins";
 import { supabase } from "@/integrations/supabase/client";
 import { getUserSession } from "@/utils/sessionManager";
@@ -77,8 +77,8 @@ const Payment = () => {
 
     const firstCartItem = activeCart[0];
 
-    if (method === "upi") {
-      try {
+    // Both Cash and UPI now flow to the same order-confirmation (QR) screen.
+    try {
         const total = activeCart.reduce((sum, item) => sum + item.price * item.qty, 0);
         const qrValue = `BITEZ-${sessionForCheck.id.slice(0, 8).toUpperCase()}-${Date.now()}`;
 
@@ -87,7 +87,7 @@ const Payment = () => {
           ? crypto.randomUUID()
           : `${Date.now()}00000000-0000-4000-8000-000000000000`.slice(0, 36);
 
-        let order;
+        let order: any;
         try {
           const { data: edgeResult, error: edgeErr } = await supabase.functions.invoke("analytics-orders", {
             body: {
@@ -110,6 +110,7 @@ const Payment = () => {
                 sellerName: firstCartItem?.canteenName ?? null,
                 qr_code: qrValue,
                 user_name: sessionForCheck.email || "Customer",
+                payment_method: method,
               }
             }
           });
@@ -131,7 +132,7 @@ const Payment = () => {
               total: total,
               status: "pending",
               notes: JSON.stringify({
-                payment_method: "upi",
+                payment_method: method,
                 qr_code: qrValue,
                 items: activeCart.map((c) => ({
                   itemId: c.itemId,
@@ -160,7 +161,7 @@ const Payment = () => {
           id: order.order_number || order.id.slice(0, 8),
           uid: order.id,
           createdAt: new Date(order.created_at).getTime(),
-          payment: "Online",
+          payment: method === "cod" ? "Cash" : "Online",
           status: "Pending",
           items: activeCart.map((c) => ({
             itemId: c.itemId,
@@ -192,6 +193,7 @@ const Payment = () => {
             orderId: order.id,
             qrValue: order.qr_code,
             amount: total,
+            method,
             items: activeCart.map((c) => ({
               itemId: c.itemId,
               name: c.name,
@@ -205,42 +207,10 @@ const Payment = () => {
           },
           replace: true,
         });
-
-      } catch (err) {
+    } catch (err) {
         setPlacing(false);
         endOrder();
         alert("Could not create order. Please try again: " + (err instanceof Error ? err.message : String(err)));
-      }
-      return;
-    }
-
-    try {
-      const order = createOrderOptimistic({
-        payment: "Cash",
-        paymentStatus: "PENDING",
-        isSoundPlayed: false,
-        sellerId: firstCartItem?.canteenId ?? null,
-        sellerName: firstCartItem?.canteenName ?? null,
-        items: activeCart.map((c) => ({
-          itemId: c.itemId,
-          name: c.name,
-          icon: c.icon,
-          category: c.category,
-          price: c.price,
-          qty: c.qty,
-          canteenId: c.canteenId,
-          canteenIcon: c.canteenIcon,
-        })),
-      });
-      clearCart(firstCartItem?.canteenId ?? "__unknown__");
-      activeCart.forEach((c) => pinItem(c.itemId));
-      setPlacing(false);
-      endOrder();
-      navigate(`/app/order-status?method=${method}&id=${order.uid}`, { replace: true });
-    } catch (e) {
-      setPlacing(false);
-      endOrder();
-      alert("Unable to place order: " + (e instanceof Error ? e.message : String(e)));
     }
   };
 
